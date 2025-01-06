@@ -1,36 +1,46 @@
 #!/bin/bash
-# Install Apache and start the service
-sudo yum update -y
-sudo yum install -y httpd
-sudo systemctl start httpd
-sudo systemctl enable httpd
+# Update all packages
+yum update -y 
 
-# Install MySQL client
-sudo yum install -y mysql
+sudo yum install -y yum-utils shadow-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+sudo yum -y install terraform
 
-# Install PHP and required extensions
-sudo amazon-linux-extras enable php7.2
-sudo yum install -y php php-mysqlnd
-
-# Download and configure WordPress
-cd /var/www/html
-sudo wget https://wordpress.org/latest.zip
-sudo yum install -y unzip
-sudo unzip latest.zip
-sudo mv wordpress/* .
-sudo rm -rf wordpress latest.zip
-sudo mv wp-config-sample.php wp-config.php
-
-# Configure wp-config.php
-sudo sed -i "s/database_name_here/wordpress/" wp-config.php
-sudo sed -i "s/username_here/balaji/" wp-config.php
-sudo sed -i "s/password_here/balajibalu/" wp-config.php
-sudo sed -i "s/localhost/wordpress.cfm4i0ssctrk.us-east-2.rds.amazonaws.com/" wp-config.php
-
-# File permissions
-sudo chown -R apache:apache /var/www/html
-sudo chmod -R 755 /var/www/html
-
-# Restart Apache to apply changes
-sudo systemctl restart httpd
-
+yum install -y docker git MySQL curl
+systemctl start docker
+systemctl enable docker
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+sudo usermod -aG docker ec2-user
+sudo chmod 666 /var/run/docker.sock
+mkdir -p /opt/docker-wordpress
+cat <<EOL > /opt/docker-wordpress/docker-compose.yml
+version: '3.3'
+services:
+  db:
+    image: mysql:8.0.19
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=wordpress
+      - MYSQL_DATABASE=databaseword
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin123
+  wordpress:
+    image: wordpress:latest
+    ports:
+      - "80:80"
+    restart: always
+    environment:
+      - WORDPRESS_DB_HOST=db:3306  # Explicitly specifying port 3306
+      - WORDPRESS_DB_USER=admin
+      - WORDPRESS_DB_PASSWORD=admin123
+      - WORDPRESS_DB_NAME=databaseword
+volumes:
+  db_data:
+EOL
+cd /opt/docker-wordpress
+docker-compose up -d
