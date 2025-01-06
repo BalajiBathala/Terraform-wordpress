@@ -6,7 +6,7 @@ resource "aws_instance" "wordpress" {
   user_data = file("userdata.sh")
 
   tags = {
-    Name = "WordPress-Instance"
+    Name = "WordPress"
   }
 
   security_groups = [aws_security_group.wordpress_sg.name]
